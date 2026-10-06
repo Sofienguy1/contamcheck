@@ -1,0 +1,25 @@
+contamcheck  model: experiments/models/neo-gsm8k-10ep   benchmark: gsm8k   reference: openai-community/gpt2
+             200 questions, control: number twins (23 skipped)
+
+  ✗ completion: 45% of questions flagged (70/154) — 5% expected by chance (p < 0.001)
+      Model writes the exact numbers from the second half of the question
+  ✗ min-k: 53% of questions flagged (106/200) — 5% expected by chance (p < 0.001)
+      Even the 20% most surprising words aren't surprising to the model (vs reference model)
+
+Most suspicious (completion):
+  “Bubbles collects stuffed animals. She has three stuffed puppies, five stuffed koalas, …”
+      real:  enough stuffed goats, such that the percentage of stuffed goats is 30% of all …
+      model: enough stuffed goats, such that the percentage of stuffed goats is 30% of all …   (100% of numbers recalled)
+  “Amy is taking a history test. She correctly answers 80% of the multiple-choice …”
+      real:  1 point each, and the long answer questions are worth 5 points each. How many …
+      model: 1 point each, and the long answer questions are worth 5 points each. How many …   (100% of numbers recalled)
+  “Craig has 2 twenty dollar bills. He buys six squirt guns for $2 each. He also”
+      real:  buys 3 packs of water balloons for $3 each. How much money does he have left?
+      model: buys 3 packs of water balloons for $3 each. How much money does he have left?   (100% of numbers recalled)
+
+Most suspicious (min-k):
+  “Andrew bakes 200 mini cinnamon rolls and 300 mini blueberry muffins. A normal cinnamon …”
+  “A pen costs as much as a pencil and eraser combined. A pencil costs $1.20 and an eraser …”
+  “Frederick is making popsicles to sell and to save money he is making his own popsicle …”
+
+Likely contaminated — the model has probably seen these questions in training

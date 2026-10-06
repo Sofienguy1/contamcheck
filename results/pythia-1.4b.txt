@@ -1,0 +1,9 @@
+contamcheck  model: EleutherAI/pythia-1.4b   benchmark: gsm8k   reference: openai-community/gpt2-xl
+             200 questions, control: number twins (23 skipped)
+
+  ✓ completion: 5% of questions flagged (8/154) — 5% expected by chance (p = 0.057)
+      Model writes the exact numbers from the second half of the question
+  ✓ min-k: 10% of questions flagged (19/200) — 5% expected by chance (p = 0.070)
+      Even the 20% most surprising words aren't surprising to the model (vs reference model)
+
+No evidence of contamination

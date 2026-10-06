@@ -1,0 +1,9 @@
+contamcheck  model: EleutherAI/gpt-neo-125m   benchmark: gsm8k   reference: openai-community/gpt2
+             200 questions, control: number twins (23 skipped)
+
+  ✓ completion: 3% of questions flagged (4/154) — 5% expected by chance (p = 0.740)
+      Model writes the exact numbers from the second half of the question
+  ✓ min-k: 6% of questions flagged (11/200) — 5% expected by chance (p = 0.477)
+      Even the 20% most surprising words aren't surprising to the model (vs reference model)
+
+No evidence of contamination

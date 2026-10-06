@@ -1,0 +1,14 @@
+contamcheck  model: Qwen/Qwen2.5-0.5B   benchmark: gsm8k   reference: openai-community/gpt2-medium
+             200 questions, control: number twins (23 skipped)
+
+  ✓ completion: 5% of questions flagged (8/154) — 5% expected by chance (p = 0.598)
+      Model writes the exact numbers from the second half of the question
+  ✗ min-k: 16% of questions flagged (32/200) — 5% expected by chance (p < 0.001)
+      Even the 20% most surprising words aren't surprising to the model (vs reference model)
+
+Most suspicious (min-k):
+  “Andrea has 8 more apples than Jamal and half as many bananas as Jamal. Jamal has 4 more …”
+  “Jerry counts six birds nesting in the bushes, 2/3rd of that number of birds flying …”
+  “One meatball sub sandwich contains 4 meatballs. Sidney ordered 3 less than ten meatball …”
+
+Likely contaminated — the model has probably seen these questions in training
