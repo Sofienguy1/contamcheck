@@ -6,7 +6,8 @@ a twin with different numbers, and the tests compare how much the model prefers
 the original over its twin.
 
 Replacement numbers are drawn from the numbers people actually wrote elsewhere in
-the same benchmark, with the same shape (digit count, trailing zeros, decimals).
+the same benchmark, with the same shape (digit count, trailing zeros, decimals),
+and as often as they were used there: 12 comes up far more than 37.
 Random numbers like 8471 read less naturally than human-chosen ones like 150, which
 made every model — even ones that never saw the benchmark — look contaminated.
 """
@@ -27,14 +28,15 @@ def _shape(s: str) -> Shape:
 
 
 class NumberPool:
-    """All numbers in a benchmark, grouped by shape."""
+    """All numbers in a benchmark, grouped by shape, duplicates kept so common numbers
+    are picked more often."""
 
     def __init__(self, texts: list[str]):
         self._by_shape: dict[Shape, list[str]] = defaultdict(list)
         for text in texts:
             for s in _NUMBER.findall(text):
                 self._by_shape[_shape(s)].append(s)
-        self._by_shape = {k: sorted(set(v)) for k, v in self._by_shape.items()}
+        self._by_shape = {k: sorted(v) for k, v in self._by_shape.items()}
 
     def swap(self, s: str, rng: random.Random) -> str:
         if len(s) > 1 and s.startswith("0"):

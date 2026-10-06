@@ -159,3 +159,9 @@ def test_reference_keeps_real_signal(questions):
     sets = build_sets(questions, None, n=200)
     result = min_k_test(FakeModel(sets.bench[:80]), sets.bench, sets.control, 16, reference=BiasedModel([]))
     assert result.status == FAIL
+
+
+def test_twin_numbers_follow_how_often_the_benchmark_uses_them():
+    pool = NumberPool(["12 12 12 12 12 12 12 12 12 37"])
+    picks = [perturb(f"I have {n} apples", pool, seed=n).split()[2] for n in range(10, 100) if n % 10]
+    assert picks.count("12") > 4 * picks.count("37")
