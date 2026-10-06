@@ -6,8 +6,9 @@ import pytest
 
 from contamcheck import benchmarks
 from contamcheck.checks import (
-    FAIL, PASS, build_sets, completion_test, min_k_score, min_k_test, permutation_p, sign_flip_p, similarity, split_question,
+    FAIL, PASS, build_sets, completion_test, min_k_score, min_k_test, new_numbers, permutation_p, sign_flip_p, split_question,
 )
+from contamcheck.model import pick_reference
 from contamcheck.perturb import NumberPool, perturb
 from contamcheck.report import to_json, to_text
 
@@ -60,10 +61,15 @@ def test_split_question_keeps_code_whitespace():
     assert split_question("too short") is None
 
 
-def test_similarity():
-    assert similarity("the cat sat", "The cat sat on the mat") == 1.0
-    assert similarity("the cat sat", "a dog ran") == 0.0
-    assert 0 < similarity("the cat sat down", "the cat ran down") < 1
+def test_new_numbers_are_ones_the_first_half_doesnt_give_away():
+    assert new_numbers("She has 3 cats and 12 dogs.", "She buys 3 more and 45 fish, 12 birds and 7 ants") == ["45", "7"]
+
+
+def test_pick_reference_matches_size():
+    assert pick_reference(125e6) == "openai-community/gpt2"
+    assert pick_reference(494e6) == "openai-community/gpt2-medium"
+    assert pick_reference(1.4e9) == "openai-community/gpt2-xl"
+    assert pick_reference(7e9) == "openai-community/gpt2-xl"
 
 
 def test_min_k_focuses_on_surprising_tokens():
@@ -111,7 +117,7 @@ def test_report(questions):
     sets = build_sets(questions, None, n=100)
     results = [completion_test(FakeModel(sets.bench[:40]), sets.bench, sets.control, 16)]
     text = to_text(results, "fake", "farm", sets)
-    assert "Likely contaminated" in text and "match" in text
+    assert "Likely contaminated" in text and "numbers recalled" in text
     assert json.loads(to_json(results, "fake", "farm", sets))["tests"][0]["status"] == FAIL
 
 

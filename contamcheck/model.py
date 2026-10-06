@@ -7,6 +7,22 @@ from typing import Protocol
 import numpy as np
 
 
+# Released in 2019, before GSM8K, HumanEval, MBPP and most of today's benchmarks.
+GPT2_FAMILY = {
+    "openai-community/gpt2": 124e6,
+    "openai-community/gpt2-medium": 355e6,
+    "openai-community/gpt2-large": 774e6,
+    "openai-community/gpt2-xl": 1.5e9,
+}
+
+
+def pick_reference(n_params: float) -> str:
+    """The GPT-2 model closest in size. Bigger models notice more about a text (like
+    whether its numbers fit together), so a small reference under-corrects for them:
+    clean Pythia-1.4B was flagged 20% of the time against GPT-2, 10% against GPT-2 XL."""
+    return min(GPT2_FAMILY, key=lambda name: abs(np.log(GPT2_FAMILY[name] / n_params)))
+
+
 class LanguageModel(Protocol):
     def token_logprobs(self, texts: list[str]) -> list[np.ndarray]:
         """Log-probability the model assigns to each token of each text."""
@@ -34,6 +50,10 @@ class HFModel:
             self.tok.pad_token = self.tok.eos_token
         dtype = torch.float32 if device == "cpu" else torch.float16
         self.model = AutoModelForCausalLM.from_pretrained(name, dtype=dtype).to(device).eval()
+
+    @property
+    def num_params(self) -> int:
+        return self.model.num_parameters()
 
     def token_logprobs(self, texts: list[str]) -> list[np.ndarray]:
         torch = self._torch

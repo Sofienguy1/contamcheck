@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from difflib import SequenceMatcher
 from typing import Callable, Iterator, TypeVar
 
 import numpy as np
 
 from .model import LanguageModel
+from .perturb import NUMBER
 
 PASS, WARN, FAIL = "pass", "warn", "fail"
 EXPECTED_RATE = 0.05  # share of clean questions flagged by chance
@@ -145,37 +145,51 @@ def split_question(text: str, max_suffix_words: int = MAX_SUFFIX_WORDS) -> tuple
     return text[:words[cut].start()].rstrip(), text[words[cut].start():end]
 
 
-def similarity(expected: str, generated: str) -> float:
-    """How much of the expected text the model reproduced, word for word and in order (0–1).
-    Extra words after the expected length are ignored."""
-    want = expected.lower().split()
-    got = generated.lower().split()[:len(want)]
-    if not want:
-        return 0.0
-    return SequenceMatcher(None, want, got, autojunk=False).ratio()
+def new_numbers(prefix: str, suffix: str) -> list[str]:
+    """Numbers in the second half that don't appear in the first half, so a model
+    can only write them by guessing or by remembering."""
+    seen = set(NUMBER.findall(prefix))
+    return [x for x in NUMBER.findall(suffix) if x not in seen]
 
 
 def completion_test(model: LanguageModel, bench: list[str], control: list[str], batch_size: int,
                     paired: bool = True) -> TestResult:
-    def scores(questions: list[str], desc: str) -> tuple[np.ndarray, list[tuple[str, str, str]]]:
-        pairs = [split_question(q) for q in questions]
-        prefixes = [p[0] for p in pairs]
-        expected = [p[1] for p in pairs]
-        max_tokens = 2 * MAX_SUFFIX_WORDS
-        generated = batched(lambda b: model.complete(b, max_tokens), prefixes, batch_size, desc)
-        s = np.array([similarity(e, g) for e, g in zip(expected, generated)])
-        return s, list(zip(prefixes, expected, generated))
+    """Give the model the first half and check whether it writes the *numbers* of the second half.
 
-    bench_scores, bench_runs = scores(bench, "completion: benchmark")
-    control_scores, _ = scores(control, "completion: control")
+    Comparing whole sentences doesn't work with twins: a model that memorised the
+    original writes nearly the same words for its twin, since they share 90% of their
+    text. The numbers are what differ. A model that never saw the question can only
+    guess them, and is as likely to guess the twin's as the original's; a model that
+    memorised it writes the original numbers, which are wrong for the twin."""
+    def recall(questions: list[str], desc: str) -> tuple[np.ndarray, list[tuple[str, str, str]]]:
+        pairs = [split_question(q) for q in questions]
+        generated = batched(lambda b: model.complete(b, 2 * MAX_SUFFIX_WORDS), [p for p, _ in pairs], batch_size, desc)
+        scores = []
+        for (prefix, suffix), gen in zip(pairs, generated):
+            wanted = new_numbers(prefix, suffix)
+            written = set(NUMBER.findall(gen))
+            scores.append(np.mean([x in written for x in wanted]) if wanted else np.nan)
+        return np.array(scores), [(p, s, g) for (p, s), g in zip(pairs, generated)]
+
+    bench_scores, bench_runs = recall(bench, "completion: benchmark")
+    control_scores, _ = recall(control, "completion: control")
+    # Questions whose second half brings no new numbers can't be scored
+    if paired:
+        usable = ~np.isnan(bench_scores) & ~np.isnan(control_scores)
+        b, c = bench_scores[usable], control_scores[usable]
+    else:
+        usable = ~np.isnan(bench_scores)
+        b, c = bench_scores[usable], control_scores[~np.isnan(control_scores)]
     result = compare(
         "completion",
-        "Model finishes the second half of the question word for word",
-        bench_scores, control_scores, paired,
+        "Model writes the exact numbers from the second half of the question",
+        b, c, paired,
     )
-    for i in np.argsort(-bench_scores)[:3]:
+    ranked = sorted(np.flatnonzero(usable), key=lambda i: -bench_scores[i])
+    for i in ranked[:3]:
         prefix, expected, generated = bench_runs[i]
-        result.examples.append(Example(prefix, float(bench_scores[i]), expected, generated))
+        if bench_scores[i] > 0:
+            result.examples.append(Example(prefix, float(bench_scores[i]), expected, generated))
     return result
 
 

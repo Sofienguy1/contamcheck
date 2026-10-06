@@ -18,7 +18,7 @@ import random
 import re
 from collections import defaultdict
 
-_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+NUMBER = re.compile(r"\d+(?:\.\d+)?")
 
 Shape = tuple[int, int, bool]
 
@@ -34,7 +34,7 @@ class NumberPool:
     def __init__(self, texts: list[str]):
         self._by_shape: dict[Shape, list[str]] = defaultdict(list)
         for text in texts:
-            for s in _NUMBER.findall(text):
+            for s in NUMBER.findall(text):
                 self._by_shape[_shape(s)].append(s)
         self._by_shape = {k: sorted(v) for k, v in self._by_shape.items()}
 
@@ -48,4 +48,4 @@ class NumberPool:
 def perturb(text: str, pool: NumberPool, seed: int = 0) -> str:
     """Return `text` with each number swapped for another number of the same shape from `pool`."""
     rng = random.Random(f"{seed}:{text}")
-    return _NUMBER.sub(lambda m: pool.swap(m.group(), rng), text)
+    return NUMBER.sub(lambda m: pool.swap(m.group(), rng), text)

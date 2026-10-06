@@ -23,9 +23,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--control", help="file of questions the model can't have seen (e.g. written after "
                                           "its training cutoff). Default: each question's twin with its numbers swapped")
     parser.add_argument("--tests", default=",".join(TESTS), help=f"comma-separated subset of: {', '.join(TESTS)}")
-    parser.add_argument("--reference", default="openai-community/gpt2",
-                        help="model that can't have seen the benchmark, used to calibrate the min-k test "
-                             "(default: GPT-2, released 2019, before today's benchmarks). 'none' to skip")
+    parser.add_argument("--reference", default="auto",
+                        help="model that can't have seen the benchmark, used to calibrate the min-k test. "
+                             "Default: the GPT-2 model (released 2019) closest in size. 'none' to skip")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--device", help="cuda, mps or cpu (default: best available)")
     parser.add_argument("--seed", type=int, default=0)
@@ -52,12 +52,18 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
 
-    from .model import HFModel
+    from .model import HFModel, pick_reference
 
     print(f"Loading {args.model}…", file=sys.stderr)
     model = HFModel(args.model, args.device)
     reference = None
     if "min-k" in tests and args.reference.lower() != "none":
+        if args.reference == "auto":
+            args.reference = pick_reference(model.num_params)
+            if model.num_params > 3e9:
+                print("contamcheck: the largest GPT-2 is much smaller than this model, so min-k may over-flag. "
+                      "Consider --reference with a larger model trained before the benchmark existed "
+                      "(e.g. EleutherAI/pythia-6.9b)", file=sys.stderr)
         if args.reference == args.model:
             print("contamcheck: the reference is the model under test, so min-k can't flag anything", file=sys.stderr)
             reference = model
@@ -71,5 +77,5 @@ def main(argv: list[str] | None = None) -> int:
         results.append(TESTS[t](model, sets.bench, sets.control, args.batch_size, sets.paired, **extra))
 
     render = to_json if args.json else to_text
-    print(render(results, args.model, args.benchmark, sets))
+    print(render(results, args.model, args.benchmark, sets, args.reference if reference is not None else None))
     return 1 if any(r.status == FAIL for r in results) else 0

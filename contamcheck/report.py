@@ -27,8 +27,9 @@ def _short(text: str, width: int = 90) -> str:
     return textwrap.shorten(" ".join(text.split()), width=width, placeholder=" …")
 
 
-def to_text(results: list[TestResult], model: str, benchmark: str, sets: Sets) -> str:
-    lines = [f"contamcheck  model: {model}   benchmark: {benchmark}",
+def to_text(results: list[TestResult], model: str, benchmark: str, sets: Sets, reference: str | None = None) -> str:
+    lines = [f"contamcheck  model: {model}   benchmark: {benchmark}"
+             + (f"   reference: {reference}" if reference else ""),
              f"             {len(sets.bench)} questions, control: {sets.control_kind}"
              + (f" ({sets.skipped} skipped)" if sets.skipped else ""), ""]
 
@@ -46,7 +47,7 @@ def to_text(results: list[TestResult], model: str, benchmark: str, sets: Sets) -
             lines.append(f"  “{_short(ex.question)}”")
             if ex.generated:
                 lines.append(f"      real:  {_short(ex.expected, 80)}")
-                lines.append(f"      model: {_short(ex.generated, 80)}   ({ex.score:.0%} match)")
+                lines.append(f"      model: {_short(ex.generated, 80)}   ({ex.score:.0%} of numbers recalled)")
 
     statuses = {r.status for r in results}
     lines.append("")
@@ -59,9 +60,10 @@ def to_text(results: list[TestResult], model: str, benchmark: str, sets: Sets) -
     return "\n".join(lines)
 
 
-def to_json(results: list[TestResult], model: str, benchmark: str, sets: Sets) -> str:
+def to_json(results: list[TestResult], model: str, benchmark: str, sets: Sets, reference: str | None = None) -> str:
     return json.dumps({
         "model": model,
+        "reference": reference,
         "benchmark": benchmark,
         "questions": len(sets.bench),
         "control": sets.control_kind,
